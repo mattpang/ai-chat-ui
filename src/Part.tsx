@@ -2,13 +2,16 @@ import { Markdown } from '@/components/markdown'
 import { CheckIcon, PencilIcon, RefreshCcwIcon, XIcon } from 'lucide-react'
 import type { ChatAddToolApproveResponseFunction, UIDataTypes, UIMessagePart, UITools, UIMessage } from 'ai'
 import { useEffect, useState } from 'react'
+import { AssistantText } from '@/components/assistant-text'
 import { CopyButton } from '@/components/copy-button'
+import { FinalResultPart } from '@/components/final-result-part'
 import { ForkNavigation } from '@/components/fork-navigation'
 import { MessageAction } from '@/components/message-action'
 import { MessageUsage } from '@/components/message-usage'
 import { ReasoningBlock } from '@/components/reasoning-block'
 import { ToolPart } from '@/components/tool-part'
 import { UserBubble } from '@/components/user-bubble'
+import { isFinalResultToolPart } from '@/lib/final-result'
 
 interface PartProps {
   part: UIMessagePart<UIDataTypes, UITools>
@@ -23,6 +26,7 @@ interface PartProps {
   onStartEdit?: (messageId: string) => void
   onCancelEdit?: (messageId: string, draft: string) => void
   onSubmitEdit?: (messageId: string, newText: string) => void
+  onFollowUp?: (text: string) => void
   conversationId?: string
   messageIndex?: number
   onNavigateToFork?: (conversationId: string) => void
@@ -41,6 +45,7 @@ export function Part({
   onStartEdit,
   onCancelEdit,
   onSubmitEdit,
+  onFollowUp,
   conversationId,
   messageIndex,
   onNavigateToFork,
@@ -145,7 +150,11 @@ export function Part({
       <div>
         {/* `h-auto` overrides the vendored Response's `size-full`, which stretched
             inside this flex column and pushed the actions row out of the turn. */}
-        <Markdown className="h-auto text-[0.9375rem] leading-7">{part.text}</Markdown>
+        <AssistantText
+          text={part.text}
+          disabled={status === 'submitted' || status === 'streaming'}
+          onFollowUp={onFollowUp}
+        />
         {/* `-ml-[7px]`: same correction as the user row, mirrored — the copy
             glyph sits on the same left edge as the prose above it. */}
         {index === message.parts.length - 1 && (
@@ -172,6 +181,16 @@ export function Part({
       />
     )
   } else if (part.type === 'dynamic-tool' || 'toolCallId' in part) {
+    if (isFinalResultToolPart(part)) {
+      return (
+        <FinalResultPart
+          part={part}
+          disabled={status === 'submitted' || status === 'streaming'}
+          onFollowUp={onFollowUp}
+        />
+      )
+    }
+
     return <ToolPart part={part} onApprovalResponse={onApprovalResponse} />
   }
 }

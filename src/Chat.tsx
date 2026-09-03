@@ -24,12 +24,13 @@ import { toast } from 'sonner'
 import { useQuery } from '@tanstack/react-query'
 import { useThrottle } from '@uidotdev/usehooks'
 import { nanoid } from 'nanoid'
-import { useConversationIdFromUrl } from './hooks/useConversationIdFromUrl'
+import { conversationUrl, useConversationIdFromUrl } from './hooks/useConversationIdFromUrl'
 import { Part } from './Part'
 import type { ThinkingEffort } from '@/lib/generated/thinking-effort.gen'
 import type { ConversationEntry } from './types'
 import { readEffort, writeEffort } from '@/lib/effort'
 import { fetchConfig, startupConfig } from '@/lib/config'
+import { isFinalResultToolPart } from '@/lib/final-result'
 import { resolveSelectedModel } from '@/lib/models'
 import { toolNameOfPart } from '@/lib/tool-filters'
 import { COMPLETE_TOOL_STATES, groupParts, type PartRun } from '@/lib/tool-grouping'
@@ -40,7 +41,6 @@ import {
   saveMessages,
   saveConversation,
 } from '@/lib/chat-db'
-import { stripBasePath, withBasePath } from '@/lib/base-path'
 
 // TODO: if just a single model, don't show model selector, just a label.
 
@@ -200,7 +200,7 @@ const ChatInner = () => {
     // opens as an empty chat under the old id, and every message typed into it
     // is dropped by the write guard without a word.
     if (conversationId !== '/' && isConversationDeleted(conversationId)) {
-      window.history.replaceState({}, '', withBasePath('/'))
+      window.history.replaceState({}, '', conversationUrl('/'))
       window.dispatchEvent(new Event('history-state-changed'))
       return
     }
@@ -309,7 +309,7 @@ const ChatInner = () => {
     }
 
     // we're starting a new conversation
-    if (stripBasePath(window.location.pathname) === '/') {
+    if (conversationId === '/') {
       const newConversationId = `/${nanoid()}`
       createdHereRef.current = newConversationId
       // `setConversationId` pushes the URL itself; pushing again here left two
@@ -533,6 +533,14 @@ const ChatInner = () => {
     textarea?.setSelectionRange(prompt.length, prompt.length)
   }, [])
 
+  const handleFollowUp = useCallback(
+    (prompt: string) => {
+      if (status === 'submitted' || status === 'streaming') return
+      queueSend(prompt, messages.length)
+    },
+    [messages.length, queueSend, status],
+  )
+
   const renderTurn = (message: UIMessage, messageIndex: number, isStreaming = false) =>
     renderMessageParts(
       message,
@@ -551,6 +559,7 @@ const ChatInner = () => {
           onStartEdit={handleStartEdit}
           onCancelEdit={handleCancelEdit}
           onSubmitEdit={handleSubmitEdit}
+          onFollowUp={handleFollowUp}
           conversationId={conversationId}
           messageIndex={messageIndex}
           onNavigateToFork={handleNavigateToFork}
@@ -759,7 +768,7 @@ function renderMessageParts(
   isStreaming: boolean,
 ): ReactNode[] {
   const descriptors = message.parts.map((part) => {
-    const toolName = toolNameOfPart(part)
+    const toolName = isFinalResultToolPart(part) ? null : toolNameOfPart(part)
     return { toolName, filtered: toolName !== null && isFiltered(toolName) }
   })
 
@@ -861,7 +870,7 @@ function renderMessageParts(
 // every part of every message on every streamed chunk, so re-deriving it here
 // was several thousand throwaway allocations a second on a long conversation.
 function isRenderedPart(part: UIMessagePart<UIDataTypes, UITools>, toolName: string | null): boolean {
-  return part.type === 'text' || part.type === 'reasoning' || toolName !== null
+  return part.type === 'text' || part.type === 'reasoning' || toolName !== null || isFinalResultToolPart(part)
 }
 
 // What belongs in the activity block: the model's thinking and its tool calls.

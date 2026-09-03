@@ -1,6 +1,6 @@
 import { test, expect } from '@playwright/test'
 import type { Page } from '@playwright/test'
-import { sendMessage, waitForPersisted } from '../conversation'
+import { conversationIdFromPageUrl, sendMessage, waitForPersisted } from '../conversation'
 
 const BASE_PATH = '/demo/'
 const API_PATH = '/demo/api/'
@@ -51,8 +51,9 @@ test.describe('offline artifact', () => {
     await sendMessage(page, 'markdown', 'Show me markdown')
     await chatRequest
 
-    const conversationPath = new URL(page.url()).pathname
-    expect(conversationPath).toMatch(/^\/demo\/[\w-]+$/)
+    const conversationUrl = new URL(page.url())
+    expect(conversationUrl.pathname).toBe(BASE_PATH)
+    expect(conversationUrl.searchParams.get('conversation')).toMatch(/^[\w-]+$/)
 
     // A fenced code block resolves a shiki language grammar through a dynamic import. In
     // the CDN build that import is fetched from jsdelivr at runtime; here it must already
@@ -64,15 +65,15 @@ test.describe('offline artifact', () => {
     // markdown would still read `$$`.
     await expect(page.getByText('E=mc2').first()).toBeVisible()
 
-    const conversationId = conversationPath.slice('/demo'.length)
+    const conversationId = conversationIdFromPageUrl(page.url())
     await waitForPersisted(page, 2, 10_000, conversationId)
 
     const conversationLink = page.getByRole('link', { name: /Show me markdown/ })
-    await expect(conversationLink).toHaveAttribute('href', conversationPath)
+    await expect(conversationLink).toHaveAttribute('href', `${BASE_PATH}?conversation=${conversationId.slice(1)}`)
     await page.getByRole('link', { name: 'New conversation' }).click()
     await expect(page).toHaveURL(new RegExp(`${BASE_PATH}$`))
     await conversationLink.click()
-    await expect(page).toHaveURL(new RegExp(`${conversationPath}$`))
+    await expect(page).toHaveURL(new RegExp(`${BASE_PATH}\\?conversation=${conversationId.slice(1)}$`))
 
     await page.reload()
     await expect(page.getByText('def greet():')).toBeVisible()
@@ -93,7 +94,7 @@ test.describe('offline artifact', () => {
     await sendMessage(page, 'text', 'Hello')
     await chatRequest
 
-    await expect(page).toHaveURL(/^http:\/\/127\.0\.0\.1:\d+\/demo\/[\w-]+$/)
+    await expect(page).toHaveURL(/^http:\/\/127\.0\.0\.1:\d+\/demo\/\?conversation=[\w-]+$/)
     await expect(page.getByText('Hello from the test server')).toBeVisible()
     expect(attempted).toEqual([])
   })

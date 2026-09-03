@@ -38,7 +38,7 @@ export async function waitForPersisted(
   page: Page,
   minMessages = 2,
   timeoutMs = 10_000,
-  conversationId = new URL(page.url()).pathname,
+  conversationId = conversationIdFromPageUrl(page.url()),
 ) {
   // Messages are persisted to IndexedDB (db `chat-storage`, store `messages`)
   // throttled at 500ms (see src/lib/chat-db.ts). Poll inside the page until the
@@ -102,4 +102,11 @@ export async function waitForPersisted(
     },
     { id: conversationId, min: minMessages, timeout: timeoutMs },
   )
+}
+
+export function conversationIdFromPageUrl(pageUrl: string): string {
+  const url = new URL(pageUrl)
+  const fromParam = url.searchParams.get('conversation')
+  if (fromParam) return fromParam.startsWith('/') ? fromParam : `/${fromParam}`
+  return url.pathname
 }

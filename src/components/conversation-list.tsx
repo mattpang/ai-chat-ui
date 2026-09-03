@@ -10,7 +10,7 @@ import {
   SidebarMenuButton,
   SidebarMenuItem,
 } from '@/components/ui/sidebar'
-import { withBasePath } from '@/lib/base-path'
+import { conversationHref } from '@/hooks/useConversationIdFromUrl'
 import { conversationTitle } from '@/lib/conversation-title'
 import { absoluteTime, groupByDate, relativeTime, type DateGroup } from '@/lib/format-time'
 import type { ConversationEntry } from '@/types'
@@ -59,7 +59,7 @@ export function ConversationList({
                 <SidebarMenuItem key={conversation.id} className="group/row relative">
                   <SidebarMenuButton asChild isActive={isActive} tooltip={title} className="h-auto py-2 pr-8">
                     <a
-                      href={withBasePath(conversation.id)}
+                      href={conversationHref(conversation.id)}
                       onClick={onNavigate}
                       // The active row stays clickable: navigation to where we
                       // already are is a no-op in the handler, and on a phone

@@ -159,7 +159,7 @@ test.describe('conversation lifecycle', () => {
     // opened as an empty chat and took messages, but nothing ever created an
     // entry for it: the conversation was stored under an id the sidebar had
     // never heard of and vanished as soon as it was navigated away from.
-    await page.goto('/bookmarked-elsewhere')
+    await page.goto('/?conversation=bookmarked-elsewhere')
     await expect(page.getByRole('heading', { name: 'How can I help?' })).toBeVisible()
 
     await sendMessage(page, 'text', 'Still worth keeping')
@@ -167,7 +167,7 @@ test.describe('conversation lifecycle', () => {
     await waitForPersisted(page)
 
     await expect(sidebar(page).getByText('Still worth keeping')).toBeVisible()
-    await expect(page).toHaveURL('/bookmarked-elsewhere')
+    await expect(page).toHaveURL('/?conversation=bookmarked-elsewhere')
 
     await sidebar(page).getByRole('link', { name: 'New conversation' }).click()
     await expect(sidebar(page).getByText('Still worth keeping')).toBeVisible()

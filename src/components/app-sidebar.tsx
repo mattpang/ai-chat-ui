@@ -27,9 +27,12 @@ import {
   SidebarMenuItem,
   useSidebar,
 } from '@/components/ui/sidebar'
-import { useConversationIdFromUrl } from '@/hooks/useConversationIdFromUrl'
+import {
+  conversationHref,
+  readConversationIdFromUrl,
+  useConversationIdFromUrl,
+} from '@/hooks/useConversationIdFromUrl'
 import { retryConversations, useConversationsState } from '@/hooks/useConversations'
-import { stripBasePath, withBasePath } from '@/lib/base-path'
 import { deleteConversation as deleteConv, patchConversation } from '@/lib/chat-db'
 import { conversationTitle } from '@/lib/conversation-title'
 import type { ConversationEntry } from '@/types'
@@ -46,12 +49,14 @@ function doLocalNavigation(e: React.MouseEvent) {
   if (e.button !== 0 || e.metaKey || e.ctrlKey || e.shiftKey) {
     return
   }
-  const path = new URL((e.currentTarget as HTMLAnchorElement).href).pathname
+  const target = new URL((e.currentTarget as HTMLAnchorElement).href)
+  const targetPath = `${target.pathname}${target.search}`
+  const currentPath = `${window.location.pathname}${window.location.search}`
   e.preventDefault()
   // Going where we already are: pushing would stack a duplicate entry that Back
   // has to walk through before it appears to do anything.
-  if (path === window.location.pathname) return
-  window.history.pushState({}, '', path)
+  if (targetPath === currentPath) return
+  window.history.pushState({}, '', targetPath)
   // custom event to notify other components of the URL change
   window.dispatchEvent(new Event('history-state-changed'))
 }
@@ -59,12 +64,11 @@ function doLocalNavigation(e: React.MouseEvent) {
 function deleteConversation(conversationId: string) {
   // `chat-db` emits `conversations-changed` itself.
   return deleteConv(conversationId).then(() => {
-    const currentPath = stripBasePath(window.location.pathname)
-    if (currentPath === conversationId) {
+    if (readConversationIdFromUrl() === conversationId) {
       // Replace rather than push: pushing leaves the deleted conversation one
       // Back press away, and it would open as an empty chat that silently
       // discards everything typed into it.
-      window.history.replaceState({}, '', withBasePath('/'))
+      window.history.replaceState({}, '', conversationHref('/'))
       window.dispatchEvent(new Event('history-state-changed'))
     }
   })
@@ -161,7 +165,7 @@ export function AppSidebar() {
               tooltip="New conversation"
               className="bg-primary/10 text-foreground hover:bg-primary/15 font-medium"
             >
-              <a href={withBasePath('/')} onClick={handleNavigate}>
+              <a href={conversationHref('/')} onClick={handleNavigate}>
                 <PlusIcon className="text-primary" />
                 <span>New conversation</span>
               </a>
