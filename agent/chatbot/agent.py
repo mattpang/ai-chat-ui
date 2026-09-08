@@ -1,93 +1,106 @@
 from typing import Any, cast
 
-import pydantic_ai
-from pydantic_ai.capabilities import NativeTool
-from pydantic_ai.native_tools import CodeExecutionTool, ImageGenerationTool, WebSearchTool
+from pydantic_ai import Agent
 
-from chatbot.data import Repo, get_docs_dir, get_markdown, get_table_of_contents
-from chatbot.db import open_populated_table
-
-citation_prompt = """## Citations
-
-Results are returned by "get_documents". Each message from `get_documents` is called a "source" and identified by its reference ID, which is the first occurrence of `document_id` (for example, `document_id_a` or `document_id_b`). In this example, the string `document_id` would be the source reference ID.
-
-Citations are references to `get_documents` sources. Citations may be used to refer to either a single source or multiple sources.
-
-A citation to a single source must be written as:
-\ue200cite\ue202document_id\ue201
-
-Citations to multiple sources must be written as one citation marker with each supporting `document_id` separated by the citation delimiter:
-\ue200cite\ue202document_id\ue202document_id\ue201
-
-You must NOT write reference IDs like `document_id` verbatim in the response text without putting them between \ue200...\ue201. DO NOT just have literally the placeholder string `document_id`. It should always be supported and replaced by an actual one. 
-
-- Place citations at the end of the supported sentence, or inline if the sentence is long and contains multiple supported clauses.
-- Citations must be placed after punctuation.
-- Cite only retrieved sources that directly support the cited text.
-- Never invent source IDs, line ranges, or block locators that were not returned by the tool.
-- If multiple retrieved sources materially support a proposition, cite all of them.
-- If the retrieved sources disagree, cite the conflicting sources and describe the disagreement accurately."""
+import json 
+from pathlib import Path
+from pydantic_ai.models.test import TestModel
+from pydantic_ai_harness.subagents import SubAgent, SubAgents
+from dataclasses import dataclass
+from chatbot.models import Protocol
+from pydantic_ai.tools import RunContext
 
 
-user_input_prompt = """When user input is required for selections or clarifications. Make sure the formatting is as follows: 
+example_protocol = json.loads(Path("/Users/mattpang/projects/tfgenai-mono-repo/thermo-foundry-beta/science-foundry-agent/docs/protocol_model_example.json").read_text())
 
-\n\ue301text query to user.\ue302option for the user. \ue302 another option for the user\ue304\n
-
-Use these sparingly, when you need some user input to continue. Only use one user input block, these are not stackable. 
-You must keep the number of options to less than 5.
-"""
-
-
-agent = pydantic_ai.Agent(
-    instructions="Help the user answer questions about two products ('repos'): Pydantic AI (pydantic-ai), an open source agent framework library, and Pydantic Logfire (logfire), an observability platform. Start by using the `search_docs` tool to search the relevant documentation and answer the question based on the search results. It uses a hybrid of semantic and keyword search, so writing either keywords or sentences may work. It's not searching google. Each search result starts with a path to a .md file. The file `foo/bar.md` corresponds to the URL `https://ai.pydantic.dev/foo/bar/` for Pydantic AI, `https://logfire.pydantic.dev/docs/foo/bar/` for Logfire. Include the URLs in your answer. The search results may not return complete files, or may not return the files you need. If they don't have what you need, you can use the `get_docs_file` tool. You probably only need to search once or twice, definitely not more than 3 times. The user doesn't see the search results, you need to actually return a summary of the info. To see the files that exist for the `get_docs_file` tool, along with a preview of the sections within, use the `get_table_of_contents` tool."+citation_prompt+user_input_prompt,
-    capabilities=[
-        NativeTool(WebSearchTool()),
-        NativeTool(CodeExecutionTool()),
-        NativeTool(ImageGenerationTool()),
-    ],
+mock_protocol_model = TestModel(
+    custom_output_args=example_protocol,
+    call_tools=[],
 )
 
-agent.tool_plain(get_table_of_contents)
+@dataclass
+class ProtocolPersistenceContext:
+    saved_widget_id: str | None = None
+    saved_protocol_path: Path | None = None
+    widget_data: Protocol | None = None
+
+# this example agent will just extract the protocol from a file.
+protocol_agent = Agent(
+    description=(
+        "Used to extract protocols from data. This agent will create a protocol for the user."
+    ),
+    system_prompt=(
+        "Use the `search_products` mcp tool to look up the products by key word or "
+        "name and get the details for each material. For example `XenoRNA™ Control`"
+    ),
+    model=mock_protocol_model,  # use mock_protocol_model for instant response, and  "openai:gpt-5.6-luna" for normal ops
+    deps_type=ProtocolPersistenceContext,
+    output_type=Protocol,
+    tool_timeout=60.0,
+    retries=2,
+)
 
 
-@agent.tool_plain
-def get_docs_file(repo: Repo, filename: str):
-    """Get the full text of a documentation file by its filename, e.g. `foo/bar.md`."""
-    if not filename.endswith('.md'):
-        filename += '.md'
-    path = get_docs_dir(repo) / filename
-    if not path.exists():
-        return f'File {filename} does not exist'
-    return get_markdown(path)
+@protocol_agent.output_validator
+def save_protocol(ctx: RunContext[ProtocolPersistenceContext], protocol: Protocol) -> Protocol:
+    file_id, path = '12345','/protocol/1.id'
+    if ctx.deps is not None:
+        ctx.deps.saved_widget_id = file_id
+        ctx.deps.saved_protocol_path = path
+        ctx.deps.widget_data = protocol
+    return protocol
+
+simple_prompt="""You are Thermo Fisher Foundry, an expert scientific collaborator. Help experienced scientists reason through experimental work, inspect relevant evidence, and deliberately retain useful results.
+
+# Tools
+- `get_reference` takes the a query text and matches that with related documents.
+
+# Collaboration
+- Preserve supplied conversational facts; let the latest correction override older context.
+- Lead with the answer, decision, or evidence gap; expand when the scientist requests more detail.
+- Answer directly when the request is actionable; pursue a complete, evidence-backed answer.
+- Share concise progress through existing chat events while keeping private reasoning private.
+- Give one substantive answer; do not present private thinking, tool plans, or progress.
+- Keep assay, sample, chemistry, reagent, control, and normalization choices revisable; name conflicts.
+- Make a brief, reversible assumption when clarification would not materially change the result.
+- Refer to the company only as Thermo Fisher or Thermo Fisher Scientific; never abbreviate its name.
+- Product replies omit public, experimental, provisional, only, fixture, development, internal, verification, commerce, unsaved, not saved, confirm compatibility, verify suitability, and before execution; never overstate evidence.
+
+Sources:
+Thermofisher website are the most trusted. 
+Prefer pubmed papers over other websites. 
+Avoid sales and marketing content. 
 
 
-@agent.tool_plain
-def search_docs(repo: Repo, query: str):
-    results = cast(
-        list[dict[str, Any]],
-        open_populated_table(repo)
-        .search(  # type: ignore
-            query,
-            query_type='hybrid',
-            vector_column_name='vector',
-            fts_columns='text',
-        )
-        .limit(10)
-        .to_list(),
-    )
-    results = [
-        r
-        for r in results
-        if not any(
-            r != r2
-            and r['path'] == r2['path']
-            and r['headers'][: len(r2['headers'])] == r2['headers']
-            for r2 in results
-        )
-    ]
+- Correct the next useful step; intent confirmation never precedes actionable read-only evidence.
 
-    return '\n\n---------\n\n'.join(r['text'] for r in results)
+"""
 
+agent = Agent(
+    system_prompt=simple_prompt
+    + (
+        "If a protocol is required, first tell the user in the output stream that you will "
+        "hand off to the protocol agent to create the protocol, then delegate to the protocol "
+        "agent. The protocol agent will persist this entry to file. Do not repeat the protocol "
+        "in the final output."
+        "You may also use the vector_retrieval_tool to look up any resources and documentation required. The client_id must be set to benchmark.all.docs.v1"
+    ),
+    model="openai:gpt-5.6-luna",
+    deps_type=ProtocolPersistenceContext,
+    output_type=str,
+    capabilities=[
+        # MCP(
+        #     url=os.environ.get("VECTOR_SEARCH_MCP_URL"),
+        #     headers={
+        #         "Authorization": "Bearer "
+        #         + get_auth_token(endpoint=os.environ.get("PRODUCT_MCP_URL"))
+        #     },
+        # ),
+        SubAgents(agents=[SubAgent(name="protocol agent", agent=protocol_agent)]),
+    ],
+    tool_timeout=60.0,
+    retries=3,
+)
 
 if __name__ == '__main__':
     # print(agent.run_sync('how do i see errors').output)

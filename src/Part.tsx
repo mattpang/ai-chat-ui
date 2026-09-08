@@ -9,9 +9,11 @@ import { ForkNavigation } from '@/components/fork-navigation'
 import { MessageAction } from '@/components/message-action'
 import { MessageUsage } from '@/components/message-usage'
 import { ReasoningBlock } from '@/components/reasoning-block'
+import { StructuredProtocolCard } from '@/components/structured-protocol-card'
 import { ToolPart } from '@/components/tool-part'
 import { UserBubble } from '@/components/user-bubble'
 import { isFinalResultToolPart } from '@/lib/final-result'
+import { structuredProtocolOfMainChatToolPart } from '@/lib/structured-protocol-tool'
 
 interface PartProps {
   part: UIMessagePart<UIDataTypes, UITools>
@@ -189,6 +191,11 @@ export function Part({
           onFollowUp={onFollowUp}
         />
       )
+    }
+
+    const structuredProtocol = structuredProtocolOfMainChatToolPart(part)
+    if (structuredProtocol !== null) {
+      return <StructuredProtocolCard protocol={structuredProtocol} />
     }
 
     return <ToolPart part={part} onApprovalResponse={onApprovalResponse} />

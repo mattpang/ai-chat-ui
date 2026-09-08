@@ -32,6 +32,7 @@ import { readEffort, writeEffort } from '@/lib/effort'
 import { fetchConfig, startupConfig } from '@/lib/config'
 import { isFinalResultToolPart } from '@/lib/final-result'
 import { resolveSelectedModel } from '@/lib/models'
+import { isMainChatStructuredProtocolToolPart } from '@/lib/structured-protocol-tool'
 import { toolNameOfPart } from '@/lib/tool-filters'
 import { COMPLETE_TOOL_STATES, groupParts, type PartRun } from '@/lib/tool-grouping'
 import {
@@ -768,7 +769,8 @@ function renderMessageParts(
   isStreaming: boolean,
 ): ReactNode[] {
   const descriptors = message.parts.map((part) => {
-    const toolName = isFinalResultToolPart(part) ? null : toolNameOfPart(part)
+    const toolName =
+      isFinalResultToolPart(part) || isMainChatStructuredProtocolToolPart(part) ? null : toolNameOfPart(part)
     return { toolName, filtered: toolName !== null && isFiltered(toolName) }
   })
 
@@ -870,7 +872,13 @@ function renderMessageParts(
 // every part of every message on every streamed chunk, so re-deriving it here
 // was several thousand throwaway allocations a second on a long conversation.
 function isRenderedPart(part: UIMessagePart<UIDataTypes, UITools>, toolName: string | null): boolean {
-  return part.type === 'text' || part.type === 'reasoning' || toolName !== null || isFinalResultToolPart(part)
+  return (
+    part.type === 'text' ||
+    part.type === 'reasoning' ||
+    toolName !== null ||
+    isFinalResultToolPart(part) ||
+    isMainChatStructuredProtocolToolPart(part)
+  )
 }
 
 // What belongs in the activity block: the model's thinking and its tool calls.

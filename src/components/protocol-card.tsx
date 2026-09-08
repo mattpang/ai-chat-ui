@@ -1,5 +1,6 @@
 import { Markdown } from '@/components/markdown'
-import { readProtocolWidgetJson } from '@/lib/protocol-widget'
+import { StructuredProtocolCard } from '@/components/structured-protocol-card'
+import { readProtocolWidgetJson, readStructuredProtocolWidgetJson } from '@/lib/protocol-widget'
 import { cn } from '@/lib/utils'
 import { ExternalLinkIcon, ListOrderedIcon } from 'lucide-react'
 
@@ -11,6 +12,11 @@ interface ProtocolCardProps {
 }
 
 export function ProtocolCard({ text, title, citations, className }: ProtocolCardProps) {
+  const structuredProtocol = readStructuredProtocolWidgetJson(text)
+  if (structuredProtocol !== null) {
+    return <StructuredProtocolCard protocol={structuredProtocol} className={className} />
+  }
+
   const parsedProtocol = readProtocolWidgetJson(text)
   const cardTitle = title ?? parsedProtocol?.title ?? 'Protocol'
   const cardText = parsedProtocol?.text ?? text

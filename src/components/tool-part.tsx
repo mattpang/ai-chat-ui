@@ -5,8 +5,10 @@ import { ToolPartHeader } from '@/components/tool-part-header'
 import { ToolSection } from '@/components/tool-section'
 import { RunCodeInput } from '@/components/run-code-input'
 import { isRunCodeOutput, RunCodeOutput } from '@/components/run-code-output'
+import { StructuredProtocolCard } from '@/components/structured-protocol-card'
 import { Collapsible, CollapsibleContent } from '@/components/ui/collapsible'
 import { useToolFilters } from '@/contexts/tool-filters'
+import { readStructuredProtocolWidget } from '@/lib/protocol-widget'
 import { cn } from '@/lib/utils'
 import type { ChatAddToolApproveResponseFunction, DynamicToolUIPart, ToolUIPart } from 'ai'
 import { EyeOffIcon } from 'lucide-react'
@@ -53,6 +55,14 @@ export function ToolPart({ part, onApprovalResponse }: ToolPartProps) {
     () => (open && hasOutput ? stringifyToolOutput(part.output) : ''),
     [open, hasOutput, part.output],
   )
+  const structuredProtocolOutput = useMemo(
+    () => (hasOutput ? readStructuredProtocolWidget(part.output) : null),
+    [hasOutput, part.output],
+  )
+
+  useEffect(() => {
+    if (structuredProtocolOutput !== null) setOpen(true)
+  }, [structuredProtocolOutput])
 
   return (
     <Collapsible
@@ -111,7 +121,11 @@ export function ToolPart({ part, onApprovalResponse }: ToolPartProps) {
 
             {hasOutput &&
               !part.errorText &&
-              (isRunCode && isRunCodeOutput(part.output) ? (
+              (structuredProtocolOutput !== null ? (
+                <ToolSection label="Result" copyText={outputText} contentClassName="bg-muted/40 p-2">
+                  <StructuredProtocolCard protocol={structuredProtocolOutput} className="my-0 shadow-none" />
+                </ToolSection>
+              ) : isRunCode && isRunCodeOutput(part.output) ? (
                 <RunCodeOutput output={part.output} />
               ) : (
                 part.output !== undefined && (

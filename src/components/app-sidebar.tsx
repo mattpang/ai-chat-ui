@@ -155,7 +155,7 @@ export function AppSidebar() {
       <SidebarHeader className="gap-3">
         <div className="flex h-8 items-center gap-2 px-1">
           <img src={logoSvg} alt="" className="size-5 shrink-0" />
-          <span className="truncate text-sm font-semibold group-data-[state=collapsed]:hidden">Pydantic AI</span>
+          <span className="truncate text-sm font-semibold group-data-[state=collapsed]:hidden">Foundry Chat</span>
         </div>
 
         <SidebarMenu>
