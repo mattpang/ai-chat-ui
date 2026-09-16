@@ -14,6 +14,7 @@ import { UsageSummary } from '@/components/usage-summary'
 import { WelcomeScreen } from '@/components/welcome-screen'
 import { TurnActivity, TurnActivityStep } from '@/components/turn-activity'
 import { ToolFiltersProvider, useToolFilters } from '@/contexts/tool-filters'
+import { CitationTargetsProvider } from '@/contexts/citation-targets'
 import { Chat as ChatSession, useChat } from '@ai-sdk/react'
 import { DefaultChatTransport, lastAssistantMessageIsCompleteWithApprovalResponses } from 'ai'
 import type { UIDataTypes, UIMessage, UIMessagePart, UITools } from 'ai'
@@ -703,7 +704,9 @@ const ChatInner = () => {
                     ))}
                   </Sources>
                 )}
-                {renderTurn(message, messageIndex, isStreaming)}
+                <CitationTargetsProvider messageId={message.id}>
+                  {renderTurn(message, messageIndex, isStreaming)}
+                </CitationTargetsProvider>
               </AssistantTurn>
             )
           })}

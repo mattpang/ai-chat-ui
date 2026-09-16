@@ -1,4 +1,5 @@
 import { Markdown } from '@/components/markdown'
+import { CitationButton } from '@/components/citation-button'
 import { ProtocolCard } from '@/components/protocol-card'
 import { Button } from '@/components/ui/button'
 import { parseAssistantMarkers } from '@/lib/assistant-markers'
@@ -29,16 +30,7 @@ export function AssistantText({ text, className, disabled, onFollowUp }: Assista
           return (
             <span key={index} className="not-prose inline-flex flex-wrap gap-1 align-baseline">
               {segment.documentIds.map((documentId) => (
-                <Button
-                  key={documentId}
-                  type="button"
-                  variant="secondary"
-                  size="sm"
-                  className="h-6 rounded-full px-2 text-xs"
-                  aria-label={`Citation ${documentId}`}
-                >
-                  {documentId}
-                </Button>
+                <CitationButton key={documentId} documentId={documentId} disabled={disabled} />
               ))}
             </span>
           )

@@ -4,6 +4,7 @@ import { toolNameOfPart } from '@/lib/tool-filters'
 import type { UIDataTypes, UIMessagePart, UITools } from 'ai'
 
 export interface JournalCardModel {
+  id?: string
   card_type: 'Journal' | 'Document'
   title: string
   related_reason: string
@@ -33,6 +34,7 @@ export function readJournalResults(value: unknown, depth = 0): JournalCardModel[
       if (typeof card.related_reason !== 'string') return []
       return [
         {
+          id: readText(card.id),
           card_type: card.card_type,
           title: card.title,
           related_reason: card.related_reason,

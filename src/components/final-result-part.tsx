@@ -1,9 +1,8 @@
 import { AssistantText } from '@/components/assistant-text'
 import { ProtocolCard } from '@/components/protocol-card'
-import { Button } from '@/components/ui/button'
+import { CitationButton } from '@/components/citation-button'
 import { finalResultPayloadOfPart } from '@/lib/final-result'
 import type { DynamicToolUIPart, ToolUIPart } from 'ai'
-import { ExternalLinkIcon } from 'lucide-react'
 
 interface FinalResultPartProps {
   part: ToolUIPart | DynamicToolUIPart
@@ -28,18 +27,7 @@ export function FinalResultPart({ part, disabled, onFollowUp }: FinalResultPartP
 
         return (
           <div key={index} className="not-prose">
-            {widget.url ? (
-              <Button asChild variant="secondary" size="sm" className="h-7 rounded-full px-3 text-xs">
-                <a href={widget.url} rel="noreferrer" target="_blank" aria-label={`Citation ${widget.documentId}`}>
-                  {widget.documentId}
-                  <ExternalLinkIcon className="size-3" />
-                </a>
-              </Button>
-            ) : (
-              <Button type="button" variant="secondary" size="sm" className="h-7 rounded-full px-3 text-xs">
-                {widget.documentId}
-              </Button>
-            )}
+            <CitationButton documentId={widget.documentId} disabled={disabled} fallbackUrl={widget.url} />
           </div>
         )
       })}
