@@ -14,6 +14,8 @@ import { ToolPart } from '@/components/tool-part'
 import { UserBubble } from '@/components/user-bubble'
 import { isFinalResultToolPart } from '@/lib/final-result'
 import { structuredProtocolOfMainChatToolPart } from '@/lib/structured-protocol-tool'
+import { journalResultsOfMainChatToolPart } from '@/lib/journal-widget'
+import { JournalCards } from '@/components/journal-cards'
 
 interface PartProps {
   part: UIMessagePart<UIDataTypes, UITools>
@@ -192,6 +194,9 @@ export function Part({
         />
       )
     }
+
+    const journalCards = journalResultsOfMainChatToolPart(part)
+    if (journalCards !== null) return <JournalCards cards={journalCards} />
 
     const structuredProtocol = structuredProtocolOfMainChatToolPart(part)
     if (structuredProtocol !== null) {

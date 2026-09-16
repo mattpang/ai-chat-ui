@@ -33,6 +33,7 @@ import { fetchConfig, startupConfig } from '@/lib/config'
 import { isFinalResultToolPart } from '@/lib/final-result'
 import { resolveSelectedModel } from '@/lib/models'
 import { isMainChatStructuredProtocolToolPart } from '@/lib/structured-protocol-tool'
+import { isMainChatJournalToolPart } from '@/lib/journal-widget'
 import { toolNameOfPart } from '@/lib/tool-filters'
 import { COMPLETE_TOOL_STATES, groupParts, type PartRun } from '@/lib/tool-grouping'
 import {
@@ -769,9 +770,12 @@ function renderMessageParts(
   isStreaming: boolean,
 ): ReactNode[] {
   const descriptors = message.parts.map((part) => {
+    const deferredJournal = isMainChatJournalToolPart(part)
     const toolName =
-      isFinalResultToolPart(part) || isMainChatStructuredProtocolToolPart(part) ? null : toolNameOfPart(part)
-    return { toolName, filtered: toolName !== null && isFiltered(toolName) }
+      isFinalResultToolPart(part) || isMainChatStructuredProtocolToolPart(part) || deferredJournal
+        ? null
+        : toolNameOfPart(part)
+    return { toolName, filtered: toolName !== null && isFiltered(toolName), deferredJournal }
   })
 
   const renderRun = (run: PartRun): ReactNode => {
@@ -806,6 +810,7 @@ function renderMessageParts(
   // block, so a turn reads as "what the agent did" then "what it said" rather
   // than as a stack of cards the answer has to be scrolled past.
   let activity: PartRun[] = []
+  const journalRuns: PartRun[] = []
 
   const flushActivity = () => {
     if (activity.length === 0) return
@@ -814,6 +819,12 @@ function renderMessageParts(
   }
 
   for (const run of groupParts(descriptors)) {
+    // Retrieval results arrive before the answer. Keep them below the complete
+    // response, and avoid inserting a card grid while prose is still streaming.
+    if (run.kind === 'single' && descriptors[run.index].deferredJournal) {
+      journalRuns.push(run)
+      continue
+    }
     // Parts the message column draws nothing for still ended the current run,
     // so a tool loop split into a foldable block per invisible marker — the
     // exact shape the single block exists to collect. `step-start` marks a model
@@ -829,6 +840,9 @@ function renderMessageParts(
     items.push({ kind: 'part', run })
   }
   flushActivity()
+  if (!isStreaming) {
+    items.push(...journalRuns.map((run) => ({ kind: 'part' as const, run })))
+  }
 
   return items.map((item, position) => {
     if (item.kind === 'part') return renderRun(item.run)
@@ -877,7 +891,8 @@ function isRenderedPart(part: UIMessagePart<UIDataTypes, UITools>, toolName: str
     part.type === 'reasoning' ||
     toolName !== null ||
     isFinalResultToolPart(part) ||
-    isMainChatStructuredProtocolToolPart(part)
+    isMainChatStructuredProtocolToolPart(part) ||
+    isMainChatJournalToolPart(part)
   )
 }
 
