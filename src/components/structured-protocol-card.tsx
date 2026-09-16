@@ -8,6 +8,7 @@ import {
 import { useMemo, useState, type ReactNode } from 'react'
 
 import { Button } from '@/components/ui/button'
+import { ProtocolSummaryCard } from '@/components/protocol-summary-card'
 import type { ProtocolMaterial, StructuredProtocolWidgetFields } from '@/lib/protocol-widget'
 import { cn } from '@/lib/utils'
 
@@ -22,8 +23,22 @@ interface MaterialRecord {
 }
 
 export function StructuredProtocolCard({ protocol, className }: StructuredProtocolCardProps) {
+  const [showDetails, setShowDetails] = useState(false)
   const [expandedStages, setExpandedStages] = useState<Set<number>>(() => new Set())
   const materials = useMemo(() => collectMaterials(protocol), [protocol])
+
+  if (!showDetails) {
+    return (
+      <ProtocolSummaryCard
+        protocol={protocol}
+        materialCount={materials.length}
+        className={className}
+        onViewSteps={() => {
+          setShowDetails(true)
+        }}
+      />
+    )
+  }
 
   return (
     <section
@@ -38,10 +53,31 @@ export function StructuredProtocolCard({ protocol, className }: StructuredProtoc
           <ListOrderedIcon className="size-5 shrink-0" />
           <span className="truncate">Protocol</span>
         </div>
-        <div className="hidden items-center gap-6 text-[#202020] sm:flex" aria-hidden="true">
-          <Maximize2Icon className="size-5" />
-          <EllipsisIcon className="size-5" />
-          <X className="size-5" />
+        <div className="flex items-center gap-6 text-[#202020]">
+          <button
+            type="button"
+            aria-label="Return to compact protocol"
+            title="Return to compact protocol"
+            aria-expanded={true}
+            onClick={() => {
+              setShowDetails(false)
+            }}
+            className="rounded p-1 hover:bg-zinc-200 focus-visible:outline-2 focus-visible:outline-offset-2"
+          >
+            <Maximize2Icon className="size-5" aria-hidden="true" />
+          </button>
+          <EllipsisIcon className="hidden size-5 sm:block" aria-hidden="true" />
+          <button
+            type="button"
+            aria-label="Collapse protocol"
+            aria-expanded={true}
+            onClick={() => {
+              setShowDetails(false)
+            }}
+            className="rounded p-1 hover:bg-zinc-200 focus-visible:outline-2 focus-visible:outline-offset-2"
+          >
+            <X className="size-5" aria-hidden="true" />
+          </button>
         </div>
       </header>
 

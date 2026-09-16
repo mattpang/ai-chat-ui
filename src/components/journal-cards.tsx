@@ -27,7 +27,7 @@ function JournalCard({ card }: { card: JournalCardModel }) {
   ].filter(([, value]) => value)
 
   return (
-    <article className="relative flex min-h-60 min-w-0 flex-col rounded-[18px] border-2 border-zinc-900 bg-zinc-100 p-4 text-zinc-900 shadow-lg shadow-black/10 dark:border-zinc-400 dark:bg-zinc-900 dark:text-zinc-100">
+    <article className="relative flex min-h-60 min-w-0 flex-col rounded-[18px] bg-zinc-100 p-4 text-zinc-900 shadow-lg shadow-black/10 dark:text-zinc-100">
       <div className="flex items-center gap-2 text-sm text-zinc-700 dark:text-zinc-300">
         <Icon aria-hidden="true" className="size-4 shrink-0" />
         <span>{isJournal ? 'Journal article' : 'Document'}</span>
@@ -66,7 +66,7 @@ function JournalCard({ card }: { card: JournalCardModel }) {
       <div
         id={detailsId}
         hidden={!expanded}
-        className="relative z-10 mt-4 border-t border-zinc-300 pt-4 dark:border-zinc-700"
+        className="relative z-10 mt-4 pt-4"
       >
         <dl className="space-y-4 text-sm leading-relaxed">
           {details.map(([label, value]) => (
